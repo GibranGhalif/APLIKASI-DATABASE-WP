@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Informasi Pajak Daerah - Pemda Sidrap</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- shpjs for SHP file support -->
+    <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
+    
+    <!-- JSZip for KMZ support -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <!-- toGeoJSON for KML support -->
+    <script src="https://unpkg.com/@mapbox/togeojson/togeojson.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- SheetJS (XLSX) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .login-bg {
+            background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('https://upload.wikimedia.org/wikipedia/commons/e/e6/Kantor_Bupati_Sidenreng_Rappang.jpg');
+            background-size: cover;
+            background-position: center;
+        }
+        #map-picker, #map-block {
+            height: 400px;
+            width: 100%;
+            z-index: 1;
+        }
+        .hidden {
+            display: none;
+        }
+        /* Custom Scrollbar for Sidebar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; 
+        }
+    </style>
+</head>
+<body class="h-screen overflow-hidden">
+
+    <!-- LOGIN PAGE -->
+    <div id="login-page" class="h-full w-full login-bg flex items-center justify-center">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-96 transform transition-all hover:scale-105">
+            <div class="text-center mb-6">
+                <!-- Placeholder Logo Sidrap if direct URL fails, using a generic emblem style -->
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Lambang_Kabupaten_Sidenreng_Rappang.png/1200px-Lambang_Kabupaten_Sidenreng_Rappang.png" alt="Logo Pemda Sidrap" class="h-24 mx-auto mb-4 object-contain">
+                <h2 class="text-2xl font-bold text-gray-800">SIPD SIDRAP</h2>
+                <p class="text-sm text-gray-500">Sistem Informasi Pajak Daerah</p>
+            </div>
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="username">Username</label>
+                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-blue-500" id="username" type="text" placeholder="admin" required>
+                </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="password">Password</label>
+                    <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-blue-500" id="password" type="password" placeholder="admin" required>
+                </div>
+                <button class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300" type="submit">
+                    Masuk
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- DASHBOARD LAYOUT -->
+    <div id="dashboard" class="h-full flex hidden">
+        <!-- Sidebar -->
+        <div class="w-64 bg-slate-800 text-white flex flex-col shadow-lg transition-all duration-300">
+            <div class="p-4 border-b border-slate-700 flex items-center space-x-3">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Lambang_Kabupaten_Sidenreng_Rappang.png/1200px-Lambang_Kabupaten_Sidenreng_Rappang.png" alt="Logo" class="h-10 w-10 bg-white rounded-full p-1">
+                <div>
+                    <h1 class="font-bold text-lg">SIPD SIDRAP</h1>
+                    <p class="text-xs text-slate-400">Panel Admin</p>
+                </div>
+            </div>
+            
+            <nav class="flex-1 overflow-y-auto py-4">
+                <ul class="space-y-2 px-2">
+                    <li>
+                        <button onclick="app.navigate('home')" class="nav-btn w-full text-left px-4 py-3 rounded hover:bg-slate-700 transition flex items-center space-x-3">
+                            <i class="fas fa-home w-6"></i>
+                            <span>Beranda</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button onclick="app.navigate('input-wp')" class="nav-btn w-full text-left px-4 py-3 rounded hover:bg-slate-700 transition flex items-center space-x-3">
+                            <i class="fas fa-file-invoice-dollar w-6"></i>
+                            <span>Input Wajib Pajak</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button onclick="app.navigate('list-wp')" class="nav-btn w-full text-left px-4 py-3 rounded hover:bg-slate-700 transition flex items-center space-x-3">
+                            <i class="fas fa-list w-6"></i>
+                            <span>Data Wajib Pajak</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button onclick="app.navigate('map-block')" class="nav-btn w-full text-left px-4 py-3 rounded hover:bg-slate-700 transition flex items-center space-x-3">
+                            <i class="fas fa-map w-6"></i>
+                            <span>Peta Blok (SHP/KMZ)</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button onclick="app.navigate('users')" class="nav-btn w-full text-left px-4 py-3 rounded hover:bg-slate-700 transition flex items-center space-x-3">
+                            <i class="fas fa-users-cog w-6"></i>
+                            <span>Manajemen User</span>
+                        </button>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="p-4 border-t border-slate-700">
+                <button onclick="app.logout()" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded flex items-center justify-center space-x-2 transition">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Keluar</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden bg-gray-100">
+            <!-- Header -->
+            <header class="bg-white shadow-sm p-4 flex justify-between items-center z-10">
+                <h2 id="page-title" class="text-xl font-bold text-gray-800">Beranda</h2>
+                <div class="flex items-center space-x-4">
+                    <span id="user-display" class="font-medium text-gray-600">Admin</span>
+                    <div class="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">A</div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <main class="flex-1 overflow-auto p-6 relative">
+                
+                <!-- VIEW: DASHBOARD HOME -->
+                <div id="view-home" class="view-section hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="text-sm text-gray-500 font-semibold">Total Wajib Pajak</p>
+                                    <h3 class="text-2xl font-bold text-gray-800" id="stat-total-wp">0</h3>
+                                </div>
+                                <div class="bg-blue-100 p-3 rounded-full text-blue-600">
+                                    <i class="fas fa-users fa-lg"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="text-sm text-gray-500 font-semibold">WP Aktif & Patuh</p>
+                                    <h3 class="text-2xl font-bold text-gray-800" id="stat-active-wp">0</h3>
+                                </div>
+                                <div class="bg-green-100 p-3 rounded-full text-green-600">
+                                    <i class="fas fa-check-circle fa-lg"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-yellow-500">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="text-sm text-gray-500 font-semibold">Jenis Pajak</p>
+                                    <h3 class="text-2xl font-bold text-gray-800">13</h3>
+                                </div>
+                                <div class="bg-yellow-100 p-3 rounded-full text-yellow-600">
+                                    <i class="fas fa-layer-group fa-lg"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-purple-500">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="text-sm text-gray-500 font-semibold">Total User</p>
+                                    <h3 class="text-2xl font-bold text-gray-800" id="stat-total-user">0</h3>
+                                </div>
+                                <div class="bg-purple-100 p-3 rounded-full text-purple-600">
+                                    <i class="fas fa-user-shield fa-lg"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts & Stats Row -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                        <!-- Chart Section -->
+                        <div class="bg-white p-6 rounded-lg shadow-md lg:col-span-2">
+                            <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">Diagram Statistik Wajib Pajak</h3>
+                            <div class="h-64 relative w-full">
+                                <canvas id="taxChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <!-- List Section -->
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">Distribusi Per Jenis Pajak</h3>
+                            <div class="overflow-y-auto max-h-64 pr-2">
+                                <div id="stats-distribution-container" class="space-y-4">
+                                    <!-- Distribution Bars Rendered Here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- System Info -->
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                         <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">Informasi Sistem</h3>
+                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <ul class="space-y-3 text-sm text-gray-600">
+                                 <li class="flex justify-between border-b pb-1"><span>Versi Aplikasi:</span> <span class="font-semibold">v1.3.0 (Update UU 1/2022)</span></li>
+                                 <li class="flex justify-between border-b pb-1"><span>Daerah:</span> <span class="font-semibold">Kabupaten Sidenreng Rappang</span></li>
+                             </ul>
+                             <ul class="space-y-3 text-sm text-gray-600">
+                                 <li class="flex justify-between border-b pb-1"><span>Status Storage:</span> <span class="font-semibold text-green-600">Local Storage Available</span></li>
+                                 <li class="flex justify-between border-b pb-1"><span>Map Provider:</span> <span class="font-semibold">OpenStreetMap & Esri Satellite</span></li>
+                             </ul>
+                         </div>
+                         <div class="mt-4 p-3 bg-blue-50 rounded text-xs text-blue-800 flex items-start">
+                             <i class="fas fa-info-circle mr-2 mt-0.5"></i> 
+                             <span>Aplikasi ini mendukung import data spasial SHP (format .zip), KML, KMZ, dan GeoJSON untuk pemetaan blok pajak dan zonasi nilai tanah.</span>
+                         </div>
+                    </div>
+                </div>
+
+                <!-- VIEW: INPUT WAJIB PAJAK -->
+                <div id="view-input-wp" class="view-section hidden">
+                    <div class="bg-white rounded-lg shadow-md p-6 max-w-5xl mx-auto">
+                        <h3 class="text-lg font-semibold mb-4 pb-2 border-b">Formulir Pendaftaran Wajib Pajak Daerah</h3>
+                        
+                        <form id="wp-form" class="space-y-6">
+                            
+                            <!-- SECTION 1: Identitas & Klasifikasi -->
+                            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                <h4 class="text-md font-bold text-blue-800 mb-3 flex items-center"><i class="fas fa-id-card mr-2"></i> Identitas & Klasifikasi Wajib Pajak</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    
+                                    <!-- Kategori -->
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 mb-1">Kategori Wajib Pajak</label>
+                                        <select name="kategori_wp" class="w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                                            <option value="Orang Pribadi">Orang Pribadi</option>
+                                            <option value="Badan Usaha">Badan Usaha</option>
+                                            <option value="Instansi Pemerintah">Instansi Pemerintah</option>
+                                            <option value="Organisasi">Organisasi/Yayasan</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Status -->
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 mb-1">Status Keaktifan</label>
+                                        <select name="status_wp" class="w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                                            <option value="Aktif">Aktif</option>
+                                            <option value="Non-Aktif">Non-Aktif (Tutup Sementara)</option>
+                                            <option value="Tutup Permanen">Tutup Permanen</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 mb-1">Status Kepatuhan</label>
+                                        <select name="status_kepatuhan" class="w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                                            <option value="Patuh">Patuh</option>
+                                            <option value="Kurang Patuh">Kurang Patuh</option>
+                                            <option value="Menunggak">Menunggak</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Nama -->
+                                    <div class="md:col-span-2">
+                                        <label class="block text-xs font-bold text-gray-700 mb-1">Nama Wajib Pajak (Sesuai KTP/Akta)</label>
+                                        <input type="text" name="nama" class="w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none" required>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 mb-1">Nama Usaha / Merk Dagang</label>
+                                        <input type="text" name="nama_usaha" class="w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Contoh: Toko Maju Jaya">
+                                    </div>
+
+                                    <!-- NIK / NPWP -->
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 mb-1">NIK (Untuk Orang Pribadi)</label>
+                                        <input type="text" name="nik" class="w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 mb-1">NPWP (Pusat)</label>
+                                        <input type="text" name="npwp" class="w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 mb-1">NPWP Daerah (NPWPD)</label>
+                                        <input type="text" name="npwpd" class="w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Auto / Input Manual">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- SECTION 2: Kontak & Alamat -->
+                            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                <h4 class="text-md font-bold text-blue-800 mb-3 flex items-center"><i class="fas fa-map-marker-alt mr-2"></i> Kontak & Alamat</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <!-- Kontak -->
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 mb-1">Nomor WhatsApp / HP</label>
+                                        <input type="text" name="no_wa" class="w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="628..." required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 mb-1">Alamat Email</label>
+                                        <input type="email" name="email" class="w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+
+                                    <!-- Alamat -->
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 mb-1">Alamat Wajib Pajak (Sesuai KTP)</label>
+                                        <textarea name="alamat_wp" rows="3" class="w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Jalan, RT/RW, Kelurahan, Kecamatan..."></textarea>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-700 mb-1">Alamat Objek Pajak (Lokasi Usaha)</label>
+                                        <textarea name="alamat_op" rows="3" class="w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Jika berbeda dengan alamat WP..." required></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- SECTION 3: Detail Pajak -->
+                            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                                <label class="block text-sm font-bold text-blue-800 mb-2">Jenis Pajak Daerah (UU No 1 Tahun 2022)</label>
+                                <select id="tax-type-select" name="jenis_pajak" class="w-full border rounded-md px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 outline-none" onchange="app.renderSpecificFields(this.value)">
+                                    <option value="">-- Pilih Jenis Pajak --</option>
+                                    <option value="reklame">1. Pajak Reklame</option>
+                                    <option value="air_tanah">2. Pajak Air Tanah</option>
+                                    <option value="sarang_burung">3. Pajak Sarang Burung Walet</option>
+                                    <option value="mblb">4. Pajak Mineral Bukan Logam dan Batuan</option>
+                                    <option value="pbb">5. Pajak Bumi dan Bangunan (PBB-P2)</option>
+                                    <option value="bphtb">6. BPHTB</option>
+                                    <option value="pbjt_makan">7. PBJT - Makanan dan Minuman</option>
+                                    <option value="pbjt_listrik">8. PBJT - Tenaga Listrik</option>
+                                    <option value="pbjt_hotel">9. PBJT - Perhotelan</option>
+                                    <option value="pbjt_parkir">10. PBJT - Parkir</option>
+                                    <option value="pbjt_hiburan">11. PBJT - Kesenian dan Hiburan</option>
+                                    <option value="opsen_pkb">12. Opsen Pajak Kendaraan Bermotor</option>
+                                    <option value="opsen_bbnkb">13. Opsen Bea Balik Nama Kendaraan Bermotor</option>
+                                </select>
+                            </div>
+
+                            <!-- Dynamic Fields Container -->
+                            <div id="specific-fields" class="bg-white p-4 rounded-lg border border-gray-200 hidden shadow-sm">
+                                <!-- Fields will be injected here via JS -->
+                            </div>
+
+                            <!-- SECTION 4: Koordinat Maps -->
+                            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                <h4 class="font-bold text-gray-700 mb-2 flex items-center justify-between">
+                                    <span><i class="fas fa-map-marked-alt mr-2"></i> Titik Koordinat Lokasi Objek Pajak</span>
+                                </h4>
+                                <div class="grid grid-cols-2 gap-4 mb-2">
+                                    <div>
+                                        <label class="text-xs text-gray-500">Latitude</label>
+                                        <input type="text" id="lat" name="latitude" class="w-full bg-white border rounded px-2 py-1" readonly>
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-gray-500">Longitude</label>
+                                        <input type="text" id="lng" name="longitude" class="w-full bg-white border rounded px-2 py-1" readonly>
+                                    </div>
+                                </div>
+                                <div id="map-picker" class="rounded-lg border shadow-inner relative"></div>
+                                <p class="text-xs text-gray-500 mt-1">* Klik pada peta untuk menandai lokasi objek pajak atau gunakan tombol 'Lokasi Saya'.</p>
+                            </div>
+
+                            <div class="flex justify-end pt-4">
+                                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded shadow-lg transform transition hover:scale-105">
+                                    <i class="fas fa-save mr-2"></i> Simpan Data Wajib Pajak
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- VIEW: LIST WAJIB PAJAK -->
+                <div id="view-list-wp" class="view-section hidden">
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold">Database Wajib Pajak</h3>
+                            <div class="space-x-4">
+                                <button onclick="app.exportExcel()" class="text-green-600 hover:text-green-800 text-sm font-semibold">
+                                    <i class="fas fa-file-excel mr-1"></i> Export Excel
+                                </button>
+                                <button onclick="app.exportData()" class="text-blue-600 hover:text-blue-800 text-sm font-semibold">
+                                    <i class="fas fa-file-code mr-1"></i> Export JSON
+                                </button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Usaha / WP</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kategori</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jenis Pajak</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">NPWPD</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="wp-table-body" class="bg-white divide-y divide-gray-200">
+                                    <!-- Rows rendered via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW: MAP BLOCK -->
+                <div id="view-map-block" class="view-section hidden">
+                    <div class="bg-white rounded-lg shadow-md p-6 h-full flex flex-col">
+                        <div class="mb-4 flex justify-between items-end">
+                            <div>
+                                <h3 class="text-lg font-semibold">Peta Blok & Zonasi</h3>
+                                <p class="text-sm text-gray-500">Import data spasial (SHP/KMZ/KML) untuk melihat sebaran.</p>
+                            </div>
+                            <div>
+                                <input type="file" id="file-map-input" accept=".zip,.kml,.kmz,.json,.geojson" class="hidden" onchange="app.handleMapFile(this)">
+                                <div class="flex space-x-2">
+                                    <button onclick="app.clearMapBlock()" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded shadow transition text-sm">
+                                        <i class="fas fa-trash-alt mr-2"></i> Reset Peta
+                                    </button>
+                                    <label for="file-map-input" class="cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded shadow transition text-sm">
+                                        <i class="fas fa-plus mr-2"></i> Tambah Layer
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="map-block" class="flex-1 rounded-lg border shadow-inner min-h-[500px] z-0"></div>
+                    </div>
+                </div>
+
+                <!-- VIEW: USER MANAGEMENT -->
+                <div id="view-users" class="view-section hidden">
+                    <div class="bg-white rounded-lg shadow-md p-6 max-w-4xl mx-auto">
+                        <h3 class="text-lg font-semibold mb-4">Manajemen Pengguna</h3>
+                        
+                        <form id="user-form" class="bg-gray-50 p-4 rounded-lg mb-8 border" onsubmit="app.addUser(event)">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">Username</label>
+                                    <input type="text" id="new-username" class="w-full border rounded px-2 py-1.5" required>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">Password</label>
+                                    <input type="password" id="new-password" class="w-full border rounded px-2 py-1.5" required>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1">Role</label>
+                                    <select id="new-role" class="w-full border rounded px-2 py-1.5">
+                                        <option value="admin">Admin</option>
+                                        <option value="staff">Staff</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="submit" class="mt-3 bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                                <i class="fas fa-plus mr-1"></i> Tambah User
+                            </button>
+                        </form>
+
+                        <div class="overflow-hidden border rounded-lg">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="user-table-body" class="bg-white divide-y divide-gray-200">
+                                    <!-- User rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // Main Application Logic
+        const app = {
+            data: {
+                users: JSON.parse(localStorage.getItem('sipd_users')) || [
+                    { username: 'admin', password: 'admin', role: 'admin' }
+                ],
+                taxpayers: JSON.parse(localStorage.getItem('sipd_taxpayers')) || [],
+                currentUser: null,
+                mapPicker: null,
+                markerPicker: null,
+                mapBlock: null,
+                mapBlockLayers: [],
+                taxChart: null,
+            },
+
+            init: function() {
+                this.checkLogin();
+                
+                // Login Handler
+                document.getElementById('login-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const u = document.getElementById('username').value;
+                    const p = document.getElementById('password').value;
+                    this.login(u, p);
+                });
+
+                // Taxpayer Form Handler
+                document.getElementById('wp-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.saveTaxpayer(e.target);
+                });
+            },
+
+            checkLogin: function() {
+                const session = sessionStorage.getItem('sipd_session');
+                if (session) {
+                    this.data.currentUser = JSON.parse(session);
+                    this.showDashboard();
+                } else {
+                    this.showLogin();
+                }
+            },
+
+            login: function(username, password) {
+                const user = this.data.users.find(u => u.username === username && u.password === password);
+                if (user) {
+                    this.data.currentUser = user;
+                    sessionStorage.setItem('sipd_session', JSON.stringify(user));
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Login Berhasil',
+                        text: 'Selamat datang di SIPD Sidrap',
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
+                        this.showDashboard();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal',
+                        text: 'Username atau password salah!'
+                    });
+                }
+            },
+
+            logout: function() {
+                Swal.fire({
+                    title: 'Keluar?',
+                    text: "Anda akan keluar dari sesi ini.",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Ya, Keluar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        sessionStorage.removeItem('sipd_session');
+                        this.data.currentUser = null;
+                        this.showLogin();
+                    }
+                });
+            },
+
+            showLogin: function() {
+                document.getElementById('login-page').classList.remove('hidden');
+                document.getElementById('dashboard').classList.add('hidden');
+            },
+
+            showDashboard: function() {
+                document.getElementById('login-page').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+                document.getElementById('user-display').innerText = this.data.currentUser.username;
+                this.navigate('home');
+            },
+
+            navigate: function(viewId) {
+                // Hide all views
+                document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('bg-slate-700'));
+                
+                // Show selected view
+                document.getElementById(`view-${viewId}`).classList.remove('hidden');
+                
+                // Update Title
+                const titles = {
+                    'home': 'Beranda',
+                    'input-wp': 'Input Data Wajib Pajak',
+                    'list-wp': 'Database Wajib Pajak',
+                    'map-block': 'Peta Blok dan Zonasi',
+                    'users': 'Manajemen Pengguna'
+                };
+                document.getElementById('page-title').innerText = titles[viewId];
+
+                // Initialize specific view logic
+                if (viewId === 'home') {
+                    this.renderDashboardStats();
+                } else if (viewId === 'input-wp') {
+                    this.initMapPicker();
+                } else if (viewId === 'list-wp') {
+                    this.renderTaxpayerTable();
+                } else if (viewId === 'map-block') {
+                    this.initMapBlock();
+                } else if (viewId === 'users') {
+                    this.renderUserTable();
+                }
+            },
+
+            renderDashboardStats: function() {
+                const totalWP = this.data.taxpayers.length;
+                const activeWP = this.data.taxpayers.filter(wp => wp.status_wp === 'Aktif' && wp.status_kepatuhan === 'Patuh').length;
+                
+                document.getElementById('stat-total-wp').innerText = totalWP;
+                document.getElementById('stat-active-wp').innerText = activeWP;
+                document.getElementById('stat-total-user').innerText = this.data.users.length;
+
+                // Calculate distribution per tax type
+                const dist = {};
+                this.data.taxpayers.forEach(wp => {
+                    const type = wp.jenis_pajak || 'Tidak Diketahui';
+                    dist[type] = (dist[type] || 0) + 1;
+                });
+
+                const container = document.getElementById('stats-distribution-container');
+                container.innerHTML = '';
+                
+                // Labels and Data for Chart
+                const labels = [];
+                const dataCounts = [];
+                const backgroundColors = [];
+
+                if (totalWP === 0) {
+                    container.innerHTML = '<div class="text-center text-gray-500 py-4 italic">Belum ada data wajib pajak.</div>';
+                } else {
+                    Object.keys(dist).sort((a,b) => dist[b] - dist[a]).forEach((key, index) => {
+                        const count = dist[key];
+                        const percentage = ((count / totalWP) * 100).toFixed(1);
+                        const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        
+                        // Push to Chart Data
+                        labels.push(label);
+                        dataCounts.push(count);
+                        // Generate random or specific color
+                        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6', '#f43f5e', '#84cc16'];
+                        backgroundColors.push(colors[index % colors.length]);
+
+                        const row = `
+                            <div>
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-sm font-medium text-gray-700">${label}</span>
+                                    <span class="text-xs font-semibold text-gray-600">${count} WP (${percentage}%)</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                    <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${percentage}%"></div>
+                                </div>
+                            </div>
+                        `;
+                        container.innerHTML += row;
+                    });
+                }
+
+                // Render Chart
+                try {
+                    const ctx = document.getElementById('taxChart').getContext('2d');
+                    
+                    // Destroy existing chart if any
+                    if (this.data.taxChart) {
+                        this.data.taxChart.destroy();
+                    }
+
+                    this.data.taxChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Jumlah Wajib Pajak',
+                                data: dataCounts,
+                                backgroundColor: backgroundColors,
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Diagram Distribusi Wajib Pajak per Jenis Pajak'
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        stepSize: 1
+                                    }
+                                }
+                            }
+                        }
+                    });
+                } catch (e) {
+                    console.error("Failed to render chart", e);
+                }
+            },
+
+            initMapPicker: function() {
+                setTimeout(() => {
+                    if (!this.data.mapPicker) {
+                        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '© OpenStreetMap contributors'
+                        });
+                        const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+                        });
+
+                        this.data.mapPicker = L.map('map-picker', {
+                            center: [-3.9312, 119.8271],
+                            zoom: 12,
+                            layers: [osm]
+                        });
+
+                        const baseMaps = {
+                            "Peta Jalan": osm,
+                            "Satelit": satellite
+                        };
+                        L.control.layers(baseMaps).addTo(this.data.mapPicker);
+
+                        // Locate Control
+                        const LocateControl = L.Control.extend({
+                            options: { position: 'topleft' },
+                            onAdd: function(map) {
+                                const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
+                                const btn = L.DomUtil.create('a', 'bg-white hover:bg-gray-100 cursor-pointer flex items-center justify-center', container);
+                                btn.innerHTML = '<i class="fas fa-crosshairs text-gray-800 text-lg"></i>';
+                                btn.title = "Lokasi Saya";
+                                btn.style.width = '34px';
+                                btn.style.height = '34px';
+                                btn.href = "#";
+                                
+                                btn.onclick = function(e) {
+                                    e.preventDefault();
+                                    map.locate({setView: true, maxZoom: 16});
+                                };
+                                return container;
+                            }
+                        });
+                        this.data.mapPicker.addControl(new LocateControl());
+
+                        this.data.mapPicker.on('locationfound', (e) => {
+                            const { lat, lng } = e.latlng;
+                            document.getElementById('lat').value = lat.toFixed(6);
+                            document.getElementById('lng').value = lng.toFixed(6);
+                            
+                            if (app.data.markerPicker) {
+                                app.data.markerPicker.setLatLng(e.latlng);
+                            } else {
+                                app.data.markerPicker = L.marker(e.latlng).addTo(app.data.mapPicker);
+                            }
+                        });
+
+                        this.data.mapPicker.on('click', (e) => {
+                            const { lat, lng } = e.latlng;
+                            document.getElementById('lat').value = lat.toFixed(6);
+                            document.getElementById('lng').value = lng.toFixed(6);
+
+                            if (this.data.markerPicker) {
+                                this.data.markerPicker.setLatLng(e.latlng);
+                            } else {
+                                this.data.markerPicker = L.marker(e.latlng).addTo(this.data.mapPicker);
+                            }
+                        });
+                    } else {
+                        this.data.mapPicker.invalidateSize();
+                    }
+                }, 100);
+            },
+
+            initMapBlock: function() {
+                setTimeout(() => {
+                    if (!this.data.mapBlock) {
+                        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '© OpenStreetMap contributors'
+                        });
+                        const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+                        });
+
+                        this.data.mapBlock = L.map('map-block', {
+                            center: [-3.9312, 119.8271],
+                            zoom: 11,
+                            layers: [osm]
+                        });
+
+                        const baseMaps = {
+                            "Peta Jalan": osm,
+                            "Satelit": satellite
+                        };
+                        L.control.layers(baseMaps).addTo(this.data.mapBlock);
+                    } else {
+                        this.data.mapBlock.invalidateSize();
+                    }
+                }, 100);
+            },
+
+            renderSpecificFields: function(type) {
+                const container = document.getElementById('specific-fields');
+                container.innerHTML = '';
+                
+                if (!type) {
+                    container.classList.add('hidden');
+                    return;
+                }
+                container.classList.remove('hidden');
+                
+                let html = '';
+                
+                switch(type) {
+                    case 'reklame':
+                        html = `
+                            <h4 class="font-bold text-gray-700 mb-3 border-b pb-1">Detail Pajak Reklame</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label class="text-xs font-bold text-gray-600">Jenis Reklame</label><input type="text" name="reklame_jenis" class="w-full border rounded p-2" placeholder="Contoh: Billboard, Videotron"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Nama Brand/Judul</label><input type="text" name="reklame_brand" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Ukuran (Panjang x Lebar) meter</label>
+                                    <div class="flex space-x-2">
+                                        <input type="number" step="0.01" name="reklame_panjang" placeholder="P" class="w-1/2 border rounded p-2">
+                                        <input type="number" step="0.01" name="reklame_lebar" placeholder="L" class="w-1/2 border rounded p-2">
+                                    </div>
+                                </div>
+                                <div><label class="text-xs font-bold text-gray-600">Jumlah Unit & Sisi</label>
+                                    <div class="flex space-x-2">
+                                        <input type="number" name="reklame_unit" placeholder="Unit" class="w-1/2 border rounded p-2">
+                                        <input type="number" name="reklame_sisi" placeholder="Sisi" class="w-1/2 border rounded p-2">
+                                    </div>
+                                </div>
+                                <div><label class="text-xs font-bold text-gray-600">Masa Tayang (Hari)</label><input type="number" name="reklame_masa" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Lokasi Pemasangan</label><input type="text" name="reklame_lokasi" class="w-full border rounded p-2"></div>
+                            </div>
+                        `;
+                        break;
+                    case 'air_tanah':
+                        html = `
+                            <h4 class="font-bold text-gray-700 mb-3 border-b pb-1">Detail Pajak Air Tanah</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label class="text-xs font-bold text-gray-600">No Izin / IPAT (Opsional)</label><input type="text" name="air_izin" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Jenis Penggunaan</label><input type="text" name="air_guna" class="w-full border rounded p-2" placeholder="Contoh: Industri, Hotel"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Jumlah Sumur Bor</label><input type="number" name="air_sumur_bor" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Jumlah Sumur Resapan</label><input type="number" name="air_sumur_resap" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Kedalaman Sumur (m)</label><input type="number" name="air_dalam" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Vol. Pemakaian (m3)</label>
+                                    <div class="flex space-x-2">
+                                        <input type="number" step="0.01" name="air_vol_hari" placeholder="Per Hari" class="w-1/2 border rounded p-2">
+                                        <input type="number" step="0.01" name="air_vol_bulan" placeholder="Per Bulan" class="w-1/2 border rounded p-2">
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    case 'pbb':
+                        html = `
+                            <h4 class="font-bold text-gray-700 mb-3 border-b pb-1">Detail PBB-P2</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="col-span-2"><label class="text-xs font-bold text-gray-600">NOP (Nomor Objek Pajak)</label><input type="text" name="pbb_nop" class="w-full border rounded p-2" placeholder="18 Digit NOP"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Luas Tanah (m2)</label><input type="number" step="0.01" name="pbb_luas_tanah" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Luas Bangunan (m2)</label><input type="number" step="0.01" name="pbb_luas_bangunan" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">NJOP Tanah (Rp/m2)</label><input type="number" name="pbb_njop_tanah" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">NJOP Bangunan (Rp/m2)</label><input type="number" name="pbb_njop_bangunan" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Peruntukan</label>
+                                    <select name="pbb_peruntukan" class="w-full border rounded p-2">
+                                        <option value="Perumahan">Perumahan</option>
+                                        <option value="Komersial">Komersial/Usaha</option>
+                                        <option value="Industri">Industri</option>
+                                        <option value="Lahan Kosong">Lahan Kosong</option>
+                                        <option value="Fasilitas Sosial">Fasilitas Sosial</option>
+                                    </select>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    case 'sarang_burung':
+                        html = `
+                            <h4 class="font-bold text-gray-700 mb-3 border-b pb-1">Pajak Sarang Burung Walet</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label class="text-xs font-bold text-gray-600">Luas Gedung/Rumah Walet (m2)</label><input type="number" name="walet_luas" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Frekuensi Panen (per Tahun)</label><input type="number" name="walet_freq" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Volume Produksi (Kg)</label><input type="number" step="0.01" name="walet_vol" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Harga Pasar (Rp/Kg)</label><input type="number" name="walet_harga" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Omzet Penjualan</label><input type="number" name="walet_omzet" class="w-full border rounded p-2"></div>
+                            </div>
+                        `;
+                        break;
+                    case 'mblb':
+                        html = `
+                            <h4 class="font-bold text-gray-700 mb-3 border-b pb-1">Pajak Mineral Bukan Logam dan Batuan</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label class="text-xs font-bold text-gray-600">Nomor Izin (SIPB)</label><input type="text" name="mblb_izin" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Jenis Mineral</label><input type="text" name="mblb_jenis" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Volume Pengambilan (Ton/M3)</label><input type="number" step="0.01" name="mblb_vol" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Nilai Jual (Harga Patokan)</label><input type="number" name="mblb_nilai" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Lokasi Penambangan</label><input type="text" name="mblb_lokasi" class="w-full border rounded p-2"></div>
+                            </div>
+                        `;
+                        break;
+                    case 'bphtb':
+                        html = `
+                            <h4 class="font-bold text-gray-700 mb-3 border-b pb-1">Bea Perolehan Hak atas Tanah dan Bangunan</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label class="text-xs font-bold text-gray-600">NOP PBB</label><input type="text" name="bphtb_nop" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">No Sertifikat Tanah</label><input type="text" name="bphtb_sertifikat" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Luas Tanah (m2)</label><input type="number" step="0.01" name="bphtb_luas_tanah" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Luas Bangunan (m2)</label><input type="number" step="0.01" name="bphtb_luas_bangunan" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Nilai Transaksi / Risalah Lelang (Rp)</label><input type="number" name="bphtb_nilai" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">NJOP PBB (Rp)</label><input type="number" name="bphtb_njop" class="w-full border rounded p-2"></div>
+                                
+                                <div class="md:col-span-2">
+                                    <label class="text-xs font-bold text-gray-600">Jenis Perolehan Hak</label>
+                                    <select name="bphtb_jenis_perolehan" class="w-full border rounded p-2">
+                                        <option value="">-- Pilih Jenis Perolehan --</option>
+                                        <optgroup label="Pemindahan Hak">
+                                            <option value="Jual Beli">1. Jual Beli</option>
+                                            <option value="Tukar Menukar">2. Tukar Menukar</option>
+                                            <option value="Hibah">3. Hibah</option>
+                                            <option value="Hibah Wasiat">4. Hibah Wasiat</option>
+                                            <option value="Waris">5. Waris</option>
+                                            <option value="Pemasukan dalam Perseroan">6. Pemasukan dalam Perseroan/Badan Hukum Lain</option>
+                                            <option value="Pemisahan Hak">7. Pemisahan Hak yang Mengakibatkan Peralihan</option>
+                                            <option value="Penunjukan Pembeli Lelang">8. Penunjukan Pembeli dalam Lelang</option>
+                                            <option value="Pelaksanaan Putusan Hakim">9. Pelaksanaan Putusan Hakim (Inkracht)</option>
+                                            <option value="Penggabungan Usaha">10. Penggabungan Usaha</option>
+                                            <option value="Peleburan Usaha">11. Peleburan Usaha</option>
+                                            <option value="Pemekaran Usaha">12. Pemekaran Usaha</option>
+                                            <option value="Hadiah">13. Hadiah</option>
+                                        </optgroup>
+                                        <optgroup label="Pemberian Hak Baru">
+                                            <option value="Kelanjutan Pelepasan Hak">1. Kelanjutan Pelepasan Hak</option>
+                                            <option value="Di Luar Pelepasan Hak">2. Di Luar Pelepasan Hak</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="text-xs font-bold text-gray-600">Jenis Hak atas Tanah/Bangunan</label>
+                                    <select name="bphtb_jenis_hak" class="w-full border rounded p-2">
+                                        <option value="">-- Pilih Jenis Hak --</option>
+                                        <option value="Hak Milik">Hak Milik</option>
+                                        <option value="Hak Guna Usaha">Hak Guna Usaha</option>
+                                        <option value="Hak Guna Bangunan">Hak Guna Bangunan</option>
+                                        <option value="Hak Pakai">Hak Pakai</option>
+                                        <option value="Hak Milik Atas Satuan Rumah Susun">Hak Milik Atas Satuan Rumah Susun</option>
+                                        <option value="Hak Pengelolaan">Hak Pengelolaan</option>
+                                    </select>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    case 'pbjt_makan':
+                        html = `
+                             <h4 class="font-bold text-gray-700 mb-3 border-b pb-1">PBJT - Makanan dan Minuman</h4>
+                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label class="text-xs font-bold text-gray-600">Klasifikasi Usaha</label>
+                                    <select name="makan_klasifikasi" class="w-full border rounded p-2">
+                                        <option value="Restoran">Restoran</option>
+                                        <option value="Rumah Makan">Rumah Makan</option>
+                                        <option value="Kafe/Kafetaria">Kafe/Kafetaria</option>
+                                        <option value="Warung">Warung</option>
+                                        <option value="Katering">Jasa Boga/Katering</option>
+                                    </select>
+                                </div>
+                                <div><label class="text-xs font-bold text-gray-600">Jumlah Meja</label><input type="number" name="makan_meja" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Jumlah Kursi</label><input type="number" name="makan_kursi" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Rata-rata Pengunjung / Hari</label><input type="number" name="makan_pengunjung" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Rata-rata Harga (Per Porsi)</label><input type="number" name="makan_harga_avg" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Omzet Bruto per Bulan</label><input type="number" name="makan_omzet" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Metode Pembayaran</label>
+                                    <select name="makan_metode" class="w-full border rounded p-2">
+                                        <option value="Tunai">Tunai</option>
+                                        <option value="Non-Tunai (QRIS/EDC)">Non-Tunai (QRIS/EDC)</option>
+                                        <option value="Campuran">Campuran</option>
+                                    </select>
+                                </div>
+                             </div>
+                        `;
+                        break;
+                    case 'pbjt_listrik':
+                        html = `
+                             <h4 class="font-bold text-gray-700 mb-3 border-b pb-1">PBJT - Tenaga Listrik</h4>
+                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label class="text-xs font-bold text-gray-600">Sumber Tenaga Listrik</label>
+                                    <select name="listrik_sumber" class="w-full border rounded p-2">
+                                        <option value="Genset">Genset/Diesel</option>
+                                        <option value="Tenaga Surya">Tenaga Surya</option>
+                                        <option value="Lainnya">Lainnya</option>
+                                    </select>
+                                </div>
+                                <div><label class="text-xs font-bold text-gray-600">Kapasitas Pembangkit (KVA/KW)</label><input type="number" step="0.01" name="listrik_kapasitas" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Faktor Daya</label><input type="number" step="0.01" name="listrik_faktor_daya" class="w-full border rounded p-2" placeholder="0.8"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Penggunaan Listrik</label>
+                                    <select name="listrik_guna" class="w-full border rounded p-2">
+                                        <option value="Produksi">Kegiatan Produksi</option>
+                                        <option value="Penunjang">Penunjang Usaha</option>
+                                        <option value="Rumah Tangga">Rumah Tangga</option>
+                                    </select>
+                                </div>
+                                <div><label class="text-xs font-bold text-gray-600">Nilai Jual Tenaga Listrik (Rp)</label><input type="number" name="listrik_nilai" class="w-full border rounded p-2"></div>
+                             </div>
+                        `;
+                        break;
+                    case 'pbjt_hotel':
+                        html = `
+                             <h4 class="font-bold text-gray-700 mb-3 border-b pb-1">PBJT - Jasa Perhotelan</h4>
+                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label class="text-xs font-bold text-gray-600">Jenis Akomodasi</label>
+                                    <select name="hotel_jenis" class="w-full border rounded p-2">
+                                        <option value="Hotel Bintang">Hotel Bintang</option>
+                                        <option value="Hotel Non-Bintang">Hotel Non-Bintang/Melati</option>
+                                        <option value="Villa">Villa/Pondok Wisata</option>
+                                        <option value="Kost">Rumah Kos (>10 Kamar)</option>
+                                        <option value="Glamping">Glamping</option>
+                                    </select>
+                                </div>
+                                <div><label class="text-xs font-bold text-gray-600">Jumlah Kamar Tersedia</label><input type="number" name="hotel_jml_kamar" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Rata-rata Tingkat Hunian (%)</label><input type="number" step="0.1" name="hotel_okupansi" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Tarif Kamar Terendah (Rp)</label><input type="number" name="hotel_tarif_min" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Tarif Kamar Tertinggi (Rp)</label><input type="number" name="hotel_tarif_max" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Fasilitas Tambahan</label><input type="text" name="hotel_fasilitas" class="w-full border rounded p-2" placeholder="Meeting Room, Laundry, dll"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Omzet Sewa Kamar/Bulan</label><input type="number" name="hotel_omzet" class="w-full border rounded p-2"></div>
+                             </div>
+                        `;
+                        break;
+                    case 'pbjt_parkir':
+                         html = `
+                             <h4 class="font-bold text-gray-700 mb-3 border-b pb-1">PBJT - Jasa Parkir</h4>
+                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label class="text-xs font-bold text-gray-600">Klasifikasi Parkir</label>
+                                    <select name="parkir_jenis" class="w-full border rounded p-2">
+                                        <option value="Gedung Parkir">Gedung Parkir</option>
+                                        <option value="Pelataran">Pelataran Parkir</option>
+                                        <option value="Penitipan">Penitipan Kendaraan</option>
+                                        <option value="Valet">Valet Parking</option>
+                                    </select>
+                                </div>
+                                <div><label class="text-xs font-bold text-gray-600">Luas Area Parkir (m2)</label><input type="number" step="0.01" name="parkir_luas" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Kapasitas Mobil (Unit)</label><input type="number" name="parkir_kap_mobil" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Kapasitas Motor (Unit)</label><input type="number" name="parkir_kap_motor" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Rata-rata Kendaraan Masuk/Hari</label><input type="number" name="parkir_trafik" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Sistem Tarif</label>
+                                    <select name="parkir_tarif_sys" class="w-full border rounded p-2">
+                                        <option value="Flat">Flat (Sekali Masuk)</option>
+                                        <option value="Progresif">Progresif (Per Jam)</option>
+                                    </select>
+                                </div>
+                                <div><label class="text-xs font-bold text-gray-600">Omzet Parkir/Bulan</label><input type="number" name="parkir_omzet" class="w-full border rounded p-2"></div>
+                             </div>
+                        `;
+                        break;
+                    case 'pbjt_hiburan':
+                        html = `
+                             <h4 class="font-bold text-gray-700 mb-3 border-b pb-1">PBJT - Kesenian dan Hiburan</h4>
+                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label class="text-xs font-bold text-gray-600">Jenis Hiburan</label>
+                                    <select name="hiburan_jenis" class="w-full border rounded p-2">
+                                        <option value="Bioskop">Tontonan Film/Bioskop</option>
+                                        <option value="Pagelaran">Pagelaran Kesenian/Musik/Tari</option>
+                                        <option value="Kontes">Kontes Kecantikan/Binaraga</option>
+                                        <option value="Pameran">Pameran</option>
+                                        <option value="Diskotik">Diskotik/Karaoke/Klab Malam</option>
+                                        <option value="Sirkus">Sirkus/Akrobat/Sulap</option>
+                                        <option value="Billiard">Permainan Biliar/Bowling</option>
+                                        <option value="Pacuan">Pacuan Kuda/Kendaraan Bermotor</option>
+                                        <option value="Permainan Ketangkasan">Permainan Ketangkasan</option>
+                                        <option value="Panti Pijat">Panti Pijat/Refleksi/Mandi Uap/Spa</option>
+                                    </select>
+                                </div>
+                                <div><label class="text-xs font-bold text-gray-600">Jumlah Ruangan/Layar/Meja</label><input type="number" name="hiburan_fasilitas" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Kapasitas Pengunjung</label><input type="number" name="hiburan_kapasitas" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Harga Tiket Masuk (HTM) / Room Charge</label><input type="number" name="hiburan_htm" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Rata-rata Pengunjung/Hari</label><input type="number" name="hiburan_trafik" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Omzet Bruto per Bulan</label><input type="number" name="hiburan_omzet" class="w-full border rounded p-2"></div>
+                             </div>
+                        `;
+                        break;
+                    case 'opsen_pkb':
+                        html = `
+                             <h4 class="font-bold text-gray-700 mb-3 border-b pb-1">Opsen Pajak Kendaraan Bermotor</h4>
+                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label class="text-xs font-bold text-gray-600">Nomor Polisi</label><input type="text" name="opsen_nopol" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Nama Pemilik</label><input type="text" name="opsen_pemilik" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Merek & Tipe Kendaraan</label><input type="text" name="opsen_merek" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Tahun Pembuatan</label><input type="number" name="opsen_tahun" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Isi Silinder (CC)</label><input type="number" name="opsen_cc" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Pokok PKB Terutang (Rp)</label><input type="number" name="opsen_pokok" class="w-full border rounded p-2"></div>
+                             </div>
+                        `;
+                        break;
+                     case 'opsen_bbnkb':
+                        html = `
+                             <h4 class="font-bold text-gray-700 mb-3 border-b pb-1">Opsen Bea Balik Nama KB</h4>
+                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label class="text-xs font-bold text-gray-600">Nomor Polisi</label><input type="text" name="opsen_bbn_nopol" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Nama Pemilik Lama</label><input type="text" name="opsen_bbn_lama" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Nama Pemilik Baru</label><input type="text" name="opsen_bbn_baru" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Nilai Jual KB (NJKB)</label><input type="number" name="opsen_bbn_njkb" class="w-full border rounded p-2"></div>
+                                <div><label class="text-xs font-bold text-gray-600">Pokok BBNKB (Rp)</label><input type="number" name="opsen_bbn_nilai" class="w-full border rounded p-2"></div>
+                             </div>
+                        `;
+                        break;
+                    default:
+                        html = `<div class="p-4 text-center text-gray-500 italic">Silahkan pilih jenis pajak terlebih dahulu.</div>`;
+                }
+                
+                container.innerHTML = html;
+            },
+
+            saveTaxpayer: function(form) {
+                const formData = new FormData(form);
+                const data = Object.fromEntries(formData.entries());
+                
+                // Add Timestamp
+                data.created_at = new Date().toISOString();
+                
+                // Save
+                this.data.taxpayers.push(data);
+                localStorage.setItem('sipd_taxpayers', JSON.stringify(this.data.taxpayers));
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: 'Data Wajib Pajak Tersimpan',
+                    timer: 1500
+                });
+                
+                form.reset();
+                document.getElementById('specific-fields').classList.add('hidden');
+                document.getElementById('specific-fields').innerHTML = '';
+                if(this.data.markerPicker) {
+                    this.data.mapPicker.removeLayer(this.data.markerPicker);
+                    this.data.markerPicker = null;
+                }
+            },
+
+            renderTaxpayerTable: function() {
+                const tbody = document.getElementById('wp-table-body');
+                tbody.innerHTML = '';
+                
+                if (this.data.taxpayers.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Belum ada data.</td></tr>';
+                    return;
+                }
+
+                this.data.taxpayers.forEach((wp, index) => {
+                    // Display either Business Name or Personal Name
+                    const displayName = wp.nama_usaha ? `${wp.nama_usaha} <br><span class="text-xs text-gray-400">(${wp.nama})</span>` : wp.nama;
+                    
+                    const row = `
+                        <tr>
+                            <td class="px-6 py-4 text-sm font-medium text-gray-900">${displayName}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${wp.kategori_wp || '-'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">${wp.jenis_pajak ? wp.jenis_pajak.replace(/_/g, ' ') : '-'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${wp.npwpd || '-'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${wp.status_wp === 'Aktif' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                    ${wp.status_wp || 'N/A'}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button onclick="app.deleteTaxpayer(${index})" class="text-red-600 hover:text-red-900 ml-2">Hapus</button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            },
+
+            deleteTaxpayer: function(index) {
+                Swal.fire({
+                    title: 'Hapus Data?',
+                    text: "Data tidak bisa dikembalikan!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, Hapus'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        this.data.taxpayers.splice(index, 1);
+                        localStorage.setItem('sipd_taxpayers', JSON.stringify(this.data.taxpayers));
+                        this.renderTaxpayerTable();
+                        Swal.fire('Terhapus!', 'Data telah dihapus.', 'success');
+                    }
+                });
+            },
+
+            addUser: function(e) {
+                e.preventDefault();
+                const u = document.getElementById('new-username').value;
+                const p = document.getElementById('new-password').value;
+                const r = document.getElementById('new-role').value;
+
+                if(this.data.users.find(user => user.username === u)) {
+                    Swal.fire('Error', 'Username sudah ada', 'error');
+                    return;
+                }
+
+                this.data.users.push({ username: u, password: p, role: r });
+                localStorage.setItem('sipd_users', JSON.stringify(this.data.users));
+                
+                Swal.fire('Sukses', 'User berhasil ditambahkan', 'success');
+                e.target.reset();
+                this.renderUserTable();
+            },
+
+            renderUserTable: function() {
+                const tbody = document.getElementById('user-table-body');
+                tbody.innerHTML = '';
+                this.data.users.forEach((u, index) => {
+                    const row = `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${u.username}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${u.role}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                ${u.username !== 'admin' ? `<button onclick="app.deleteUser(${index})" class="text-red-600 hover:text-red-900">Hapus</button>` : '<span class="text-gray-400 italic">Default</span>'}
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            },
+
+            deleteUser: function(index) {
+                 Swal.fire({
+                    title: 'Hapus User?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        this.data.users.splice(index, 1);
+                        localStorage.setItem('sipd_users', JSON.stringify(this.data.users));
+                        this.renderUserTable();
+                        Swal.fire('Terhapus!', 'User telah dihapus.', 'success');
+                    }
+                });
+            },
+
+            handleMapFile: function(input) {
+                const file = input.files[0];
+                if (!file) return;
+
+                const fileName = file.name.toLowerCase();
+
+                if (fileName.endsWith('.zip')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        shp(e.target.result).then((geojson) => {
+                            this.addGeoJSONToMap(geojson);
+                        }).catch(err => {
+                            console.error(err);
+                            Swal.fire('Error', 'Gagal memproses file SHP.', 'error');
+                        });
+                    };
+                    reader.readAsArrayBuffer(file);
+
+                } else if (fileName.endsWith('.kmz')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const zip = new JSZip();
+                        zip.loadAsync(e.target.result).then(zipContent => {
+                            const kmlFile = Object.keys(zipContent.files).find(name => name.endsWith('.kml'));
+                            if (kmlFile) {
+                                zipContent.files[kmlFile].async('string').then(kmlText => {
+                                    this.processKML(kmlText);
+                                });
+                            } else {
+                                Swal.fire('Error', 'File KML tidak ditemukan dalam KMZ.', 'error');
+                            }
+                        }).catch(err => {
+                            Swal.fire('Error', 'Gagal membuka file KMZ.', 'error');
+                        });
+                    };
+                    reader.readAsArrayBuffer(file);
+
+                } else if (fileName.endsWith('.kml')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        this.processKML(e.target.result);
+                    };
+                    reader.readAsText(file);
+
+                } else if (fileName.endsWith('.json') || fileName.endsWith('.geojson')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const geojson = JSON.parse(e.target.result);
+                            this.addGeoJSONToMap(geojson);
+                        } catch (err) {
+                            Swal.fire('Error', 'JSON tidak valid', 'error');
+                        }
+                    };
+                    reader.readAsText(file);
+                } else {
+                    Swal.fire('Format Salah', 'Gunakan format .zip (SHP), .kmz, .kml, atau .geojson', 'warning');
+                }
+                
+                input.value = '';
+            },
+
+            processKML: function(kmlText) {
+                try {
+                    const parser = new DOMParser();
+                    const kml = parser.parseFromString(kmlText, 'text/xml');
+                    const geojson = toGeoJSON.kml(kml);
+                    this.addGeoJSONToMap(geojson);
+                } catch (e) {
+                    console.error(e);
+                    Swal.fire('Error', 'Gagal parsing KML.', 'error');
+                }
+            },
+
+            addGeoJSONToMap: function(geojson) {
+                if (this.data.mapBlock) {
+                    const layer = L.geoJSON(geojson, {
+                        style: function (feature) {
+                            return {color: "#" + Math.floor(Math.random()*16777215).toString(16), weight: 2, opacity: 0.8, fillOpacity: 0.4};
+                        },
+                        onEachFeature: function (feature, layer) {
+                            if (feature.properties) {
+                                let popupContent = "<div style='max-height: 200px; overflow:auto;'>";
+                                for (const key in feature.properties) {
+                                    popupContent += `<b>${key}:</b> ${feature.properties[key]}<br>`;
+                                }
+                                popupContent += "</div>";
+                                layer.bindPopup(popupContent);
+                            }
+                        }
+                    }).addTo(this.data.mapBlock);
+                    
+                    this.data.mapBlockLayers.push(layer);
+                    
+                    this.data.mapBlock.fitBounds(layer.getBounds());
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'Layer Berhasil Ditambahkan',
+                        showConfirmButton: false,
+                        timer: 2000
+                    });
+                }
+            },
+            
+            clearMapBlock: function() {
+                if (this.data.mapBlock && this.data.mapBlockLayers.length > 0) {
+                    this.data.mapBlockLayers.forEach(layer => {
+                        this.data.mapBlock.removeLayer(layer);
+                    });
+                    this.data.mapBlockLayers = [];
+                    Swal.fire('Info', 'Semua layer peta telah dibersihkan', 'info');
+                } else {
+                    Swal.fire('Info', 'Peta sudah bersih', 'info');
+                }
+            },
+
+            exportData: function() {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.data.taxpayers, null, 2));
+                const downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", "data_wajib_pajak_sidrap.json");
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            },
+
+            exportExcel: function() {
+                if (this.data.taxpayers.length === 0) {
+                    Swal.fire('Info', 'Tidak ada data untuk diexport', 'info');
+                    return;
+                }
+                
+                // Convert data to worksheet
+                const ws = XLSX.utils.json_to_sheet(this.data.taxpayers);
+                
+                // Create workbook
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Wajib Pajak");
+                
+                // Save file
+                XLSX.writeFile(wb, "Data_Wajib_Pajak_Sidrap.xlsx");
+            }
+        };
+
+        // Start App
+        app.init();
+    </script>
+</body>
+</html>
