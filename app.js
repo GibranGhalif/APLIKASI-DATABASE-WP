@@ -1740,3 +1740,498 @@ window.closeEditRealisasiModal = closeEditRealisasiModal;
 window.showEditRealisasiModalByCode = showEditRealisasiModalByCode;
 window.exportRealisasi = exportRealisasi;
 window.generateYears = generateYears;
+
+function renderWPTable() {
+    const tbody = document.getElementById('wpTableBody');
+    const search = document.getElementById('searchWp')?.value.toLowerCase() || '';
+    const filter = document.getElementById('filterPajak')?.value || '';
+    
+    let filtered = wajibPajak.filter(wp => {
+        const matchSearch = wp.nama.toLowerCase().includes(search) || 
+                           (wp.namaUsaha && wp.namaUsaha.toLowerCase().includes(search)) || 
+                           (wp.alamat && wp.alamat.toLowerCase().includes(search)) ||
+                           (wp.nik && wp.nik.includes(search));
+        const matchFilter = !filter || (wp.jenisPajak && wp.jenisPajak.includes(filter));
+        return matchSearch && matchFilter;
+    });
+    
+    if (filtered.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="px-4 py-8 text-center text-gray-500">
+                    Tidak ada data ditemukan
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = filtered.map((wp, index) => `
+        <tr class="border-b hover:bg-gray-50 transition-colors">
+            <td class="px-4 py-3 text-sm text-center">${index + 1}</td>
+            <td class="px-4 py-3">
+                <div class="flex flex-col">
+                    <span class="font-medium text-gray-800">${wp.nama}</span>
+                    ${wp.nik ? `<span class="text-xs text-gray-500">NIK: ${wp.nik}</span>` : ''}
+                </div>
+            </td>
+            <td class="px-4 py-3 text-sm text-gray-600">
+                ${wp.namaUsaha || '-'}
+            </td>
+            <td class="px-4 py-3 text-sm">
+                <div class="max-w-xs">
+                    <p class="text-gray-600 truncate" title="${wp.alamat || '-'}">${wp.alamat || '-'}</p>
+                    ${wp.kecamatan ? `<p class="text-xs text-gray-500 mt-1">${wp.kecamatan}, ${wp.kelurahan || ''}</p>` : ''}
+                </div>
+            </td>
+            <td class="px-4 py-3 text-sm">
+                <div class="flex flex-wrap gap-1">
+                    ${(wp.jenisPajak || []).map(p => `
+                        <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full whitespace-nowrap">
+                            ${getTaxName(p)}
+                        </span>
+                    `).join('')}
+                </div>
+            </td>
+            <td class="px-4 py-3 text-sm">
+                <div class="flex flex-col gap-1">
+                    <span class="px-2 py-1 ${wp.statusKeaktifan === 'Aktif' ? 'bg-green-100 text-green-700' : 
+                                           wp.statusKeaktifan === 'Tidak Aktif' ? 'bg-red-100 text-red-700' : 
+                                           wp.statusKeaktifan === 'Dalam Pengawasan' ? 'bg-yellow-100 text-yellow-700' : 
+                                           'bg-gray-100 text-gray-700'} 
+                          text-xs rounded-full w-fit">
+                        ${wp.statusKeaktifan || 'Aktif'}
+                    </span>
+                    <span class="px-2 py-1 ${wp.kepatuhan === 'Patuh' ? 'bg-green-100 text-green-700' : 
+                                           wp.kepatuhan === 'Tidak Patuh' ? 'bg-red-100 text-red-700' : 
+                                           'bg-yellow-100 text-yellow-700'} 
+                          text-xs rounded-full w-fit">
+                        ${wp.kepatuhan || 'Patuh'}
+                    </span>
+                </div>
+            </td>
+            <td class="px-4 py-3 text-sm">
+                ${wp.latitude && wp.longitude ? `
+                    <div class="flex flex-col">
+                        <span class="text-xs text-gray-600">Lat: ${parseFloat(wp.latitude).toFixed(6)}</span>
+                        <span class="text-xs text-gray-600">Lng: ${parseFloat(wp.longitude).toFixed(6)}</span>
+                        <button onclick="showOnMap(${wp.latitude}, ${wp.longitude}, '${wp.nama}')" 
+                                class="text-xs text-blue-600 hover:text-blue-800 mt-1 flex items-center gap-1">
+                            <i class="fas fa-map-marker-alt"></i>
+                            Tampilkan di Peta
+                        </button>
+                    </div>
+                ` : '<span class="text-gray-400">-</span>'}
+            </td>
+            <td class="px-4 py-3 text-sm">
+                <div class="flex gap-2">
+                    <button onclick="viewWpDetail(${wp.id})" 
+                            class="text-blue-600 hover:text-blue-800 p-1.5 rounded hover:bg-blue-50" 
+                            title="Lihat Detail">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button onclick="editWp(${wp.id})" 
+                            class="text-yellow-600 hover:text-yellow-800 p-1.5 rounded hover:bg-yellow-50" 
+                            title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="deleteWp(${wp.id})" 
+                            class="text-red-600 hover:text-red-800 p-1.5 rounded hover:bg-red-50" 
+                            title="Hapus">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Fungsi untuk menampilkan detail WP
+function viewWpDetail(id) {
+    const wp = wajibPajak.find(w => w.id === id);
+    if (!wp) {
+        showNotification('Error', 'Data tidak ditemukan', 'error');
+        return;
+    }
+    
+    let detailHtml = `
+        <div class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h4 class="font-semibold text-gray-700 mb-2">Informasi Wajib Pajak</h4>
+                    <table class="text-sm w-full">
+                        <tr><td class="py-1 text-gray-600">NIK</td><td class="py-1">: ${wp.nik || '-'}</td></tr>
+                        <tr><td class="py-1 text-gray-600">NPWPD</td><td class="py-1">: ${wp.npwp || '-'}</td></tr>
+                        <tr><td class="py-1 text-gray-600">Nama</td><td class="py-1">: ${wp.nama}</td></tr>
+                        <tr><td class="py-1 text-gray-600">Nama Usaha</td><td class="py-1">: ${wp.namaUsaha || '-'}</td></tr>
+                        <tr><td class="py-1 text-gray-600">Jenis Kelamin</td><td class="py-1">: ${wp.jenisKelamin === 'L' ? 'Laki-laki' : wp.jenisKelamin === 'P' ? 'Perempuan' : '-'}</td></tr>
+                        <tr><td class="py-1 text-gray-600">Email</td><td class="py-1">: ${wp.email || '-'}</td></tr>
+                        <tr><td class="py-1 text-gray-600">Telepon</td><td class="py-1">: ${wp.telepon || '-'}</td></tr>
+                    </table>
+                </div>
+                
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h4 class="font-semibold text-gray-700 mb-2">Status & Alamat</h4>
+                    <table class="text-sm w-full">
+                        <tr><td class="py-1 text-gray-600">Status WP</td><td class="py-1">: ${wp.status || '-'}</td></tr>
+                        <tr><td class="py-1 text-gray-600">Status Keaktifan</td><td class="py-1">: ${wp.statusKeaktifan || '-'}</td></tr>
+                        <tr><td class="py-1 text-gray-600">Kepatuhan</td><td class="py-1">: ${wp.kepatuhan || '-'}</td></tr>
+                        <tr><td class="py-1 text-gray-600">Alamat</td><td class="py-1">: ${wp.alamat || '-'}</td></tr>
+                        <tr><td class="py-1 text-gray-600">Kecamatan</td><td class="py-1">: ${wp.kecamatan || '-'}</td></tr>
+                        <tr><td class="py-1 text-gray-600">Kelurahan</td><td class="py-1">: ${wp.kelurahan || '-'}</td></tr>
+                        <tr><td class="py-1 text-gray-600">Kode Pos</td><td class="py-1">: ${wp.kodePos || '-'}</td></tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <h4 class="font-semibold text-gray-700 mb-2">Jenis Pajak</h4>
+                <div class="flex flex-wrap gap-2">
+                    ${(wp.jenisPajak || []).map(p => `
+                        <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
+                            ${getTaxName(p)}
+                        </span>
+                    `).join('')}
+                </div>
+            </div>
+            
+            ${wp.latitude && wp.longitude ? `
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h4 class="font-semibold text-gray-700 mb-2">Koordinat Lokasi</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm text-gray-600">Latitude: ${wp.latitude}</p>
+                            <p class="text-sm text-gray-600">Longitude: ${wp.longitude}</p>
+                        </div>
+                        <button onclick="showOnMap(${wp.latitude}, ${wp.longitude}, '${wp.nama}')" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 justify-center">
+                            <i class="fas fa-map"></i>
+                            Lihat di Peta
+                        </button>
+                    </div>
+                </div>
+            ` : ''}
+            
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <h4 class="font-semibold text-gray-700 mb-2">Informasi Tambahan</h4>
+                <table class="text-sm w-full">
+                    <tr><td class="py-1 text-gray-600">Dibuat oleh</td><td class="py-1">: ${wp.createdBy || 'System'}</td></tr>
+                    <tr><td class="py-1 text-gray-600">Tanggal dibuat</td><td class="py-1">: ${new Date(wp.createdAt).toLocaleString('id-ID')}</td></tr>
+                </table>
+            </div>
+        </div>
+    `;
+    
+    // Tampilkan detail pajak spesifik jika ada
+    (wp.jenisPajak || []).forEach(pajak => {
+        if (wp[pajak] && Object.keys(wp[pajak]).length > 0) {
+            detailHtml += `
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h4 class="font-semibold text-gray-700 mb-2">Detail ${getTaxName(pajak)}</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            `;
+            
+            Object.entries(wp[pajak]).forEach(([key, value]) => {
+                if (value) {
+                    const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    detailHtml += `
+                        <div class="text-sm">
+                            <span class="text-gray-600">${label}:</span>
+                            <span class="ml-1 font-medium">${value}</span>
+                        </div>
+                    `;
+                }
+            });
+            
+            detailHtml += `</div></div>`;
+        }
+    });
+    
+    Swal.fire({
+        title: `Detail: ${wp.nama}`,
+        html: detailHtml,
+        width: '800px',
+        showCloseButton: true,
+        showConfirmButton: false,
+        customClass: {
+            popup: 'rounded-2xl'
+        }
+    });
+}
+
+// Fungsi untuk mengedit WP
+function editWp(id) {
+    const wp = wajibPajak.find(w => w.id === id);
+    if (!wp) {
+        showNotification('Error', 'Data tidak ditemukan', 'error');
+        return;
+    }
+    
+    // Tampilkan form edit
+    showPage('input-wp');
+    
+    // Isi form dengan data yang ada
+    setTimeout(() => {
+        const form = document.getElementById('wpForm');
+        form.reset();
+        
+        // Isi data umum
+        Object.keys(wp).forEach(key => {
+            const input = form.querySelector(`[name="${key}"]`);
+            if (input) {
+                if (input.type === 'checkbox') {
+                    if (Array.isArray(wp[key])) {
+                        wp[key].forEach(value => {
+                            const checkbox = form.querySelector(`input[value="${value}"]`);
+                            if (checkbox) checkbox.checked = true;
+                        });
+                    }
+                } else {
+                    input.value = wp[key] || '';
+                }
+            }
+        });
+        
+        // Isi koordinat jika ada
+        if (wp.latitude && wp.longitude) {
+            document.getElementById('latitude').value = wp.latitude;
+            document.getElementById('longitude').value = wp.longitude;
+            document.getElementById('addressFromCoord').value = `Koordinat: ${wp.latitude}, ${wp.longitude}`;
+            
+            // Tambahkan marker di peta
+            if (wpMap) {
+                const lat = parseFloat(wp.latitude);
+                const lng = parseFloat(wp.longitude);
+                addMarkerToMap(lat, lng);
+                showLocationStatus(lat, lng);
+            }
+        }
+        
+        // Tampilkan field jenis pajak yang dipilih
+        (wp.jenisPajak || []).forEach(pajak => {
+            const checkbox = document.querySelector(`input[value="${pajak}"]`);
+            if (checkbox) {
+                checkbox.checked = true;
+                showTaxFields(pajak);
+                
+                // Isi data spesifik pajak
+                if (wp[pajak]) {
+                    Object.entries(wp[pajak]).forEach(([field, value]) => {
+                        const input = document.querySelector(`[name="${pajak.replace('_', '')}_${field}"]`);
+                        if (input) input.value = value || '';
+                    });
+                }
+            }
+        });
+        
+        // Scroll ke atas
+        window.scrollTo(0, 0);
+        
+        // Ubah judul form
+        const title = document.querySelector('#page-input-wp h2');
+        if (title) title.textContent = 'Edit Wajib Pajak';
+        
+        // Ubah tombol submit
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-edit mr-2"></i>Update Data';
+            submitBtn.onclick = function(e) {
+                e.preventDefault();
+                updateWp(id);
+            };
+        }
+        
+        // Tambahkan tombol batal edit
+        if (!form.querySelector('#cancelEditBtn')) {
+            const cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.id = 'cancelEditBtn';
+            cancelBtn.className = 'bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition flex items-center gap-2 ml-2';
+            cancelBtn.innerHTML = '<i class="fas fa-times"></i> Batal Edit';
+            cancelBtn.onclick = function() {
+                showPage('data-wp');
+                form.reset();
+                resetForm();
+            };
+            
+            const btnContainer = form.querySelector('.flex.justify-end');
+            if (btnContainer) {
+                btnContainer.appendChild(cancelBtn);
+            }
+        }
+        
+        showNotification('Info', 'Form telah diisi dengan data yang akan diedit', 'info');
+    }, 500);
+}
+
+// Fungsi untuk update data WP
+function updateWp(id) {
+    const form = document.getElementById('wpForm');
+    const formData = new FormData(form);
+    const selectedPajak = Array.from(document.querySelectorAll('input[name="jenisPajak"]:checked')).map(cb => cb.value);
+    
+    if (selectedPajak.length === 0) {
+        showNotification('Peringatan', 'Pilih minimal satu jenis pajak!', 'warning');
+        return;
+    }
+    
+    const index = wajibPajak.findIndex(w => w.id === id);
+    if (index === -1) {
+        showNotification('Error', 'Data tidak ditemukan', 'error');
+        return;
+    }
+    
+    const updatedData = {
+        ...wajibPajak[index],
+        nik: formData.get('nik'),
+        npwp: formData.get('npwp'),
+        nama: formData.get('nama'),
+        namaUsaha: formData.get('namaUsaha'),
+        email: formData.get('email'),
+        telepon: formData.get('telepon'),
+        jenisKelamin: formData.get('jenisKelamin'),
+        status: formData.get('status'),
+        statusKeaktifan: formData.get('statusKeaktifan'),
+        kepatuhan: formData.get('kepatuhan'),
+        alamat: formData.get('alamat'),
+        kecamatan: formData.get('kecamatan'),
+        kelurahan: formData.get('kelurahan'),
+        kodePos: formData.get('kodePos'),
+        latitude: formData.get('latitude'),
+        longitude: formData.get('longitude'),
+        jenisPajak: selectedPajak,
+        updatedAt: new Date().toISOString(),
+        updatedBy: currentUser?.nama || 'Admin'
+    };
+    
+    // Hapus data pajak lama
+    selectedPajak.forEach(pajak => {
+        delete updatedData[pajak];
+    });
+    
+    // Tambahkan data pajak baru
+    selectedPajak.forEach(pajak => {
+        const prefix = pajak.replace('_', '');
+        updatedData[pajak] = {};
+        const inputs = document.querySelectorAll(`[name^="${prefix}_"]`);
+        inputs.forEach(input => {
+            updatedData[pajak][input.name.replace(`${prefix}_`, '')] = input.value;
+        });
+    });
+    
+    wajibPajak[index] = updatedData;
+    saveData();
+    
+    showNotification('Berhasil', 'Data wajib pajak berhasil diperbarui!', 'success');
+    
+    // Kembali ke halaman data
+    showPage('data-wp');
+    form.reset();
+    
+    // Reset form
+    document.querySelectorAll('[id^="fields-"]').forEach(f => f.classList.add('hidden'));
+    clearMapLocation();
+    
+    // Hapus tombol batal edit
+    const cancelBtn = document.getElementById('cancelEditBtn');
+    if (cancelBtn) cancelBtn.remove();
+}
+
+// Fungsi untuk menampilkan lokasi di peta
+function showOnMap(lat, lng, nama) {
+    // Buka halaman peta blok
+    showPage('peta-blok');
+    
+    // Tunggu peta terinisialisasi
+    setTimeout(() => {
+        if (blockMap) {
+            blockMap.setView([lat, lng], 16, { animate: true });
+            
+            // Hapus marker lama jika ada
+            if (window.currentMarker) {
+                blockMap.removeLayer(window.currentMarker);
+            }
+            
+            // Tambahkan marker baru
+            window.currentMarker = L.marker([lat, lng]).addTo(blockMap);
+            window.currentMarker.bindPopup(`<strong>${nama}</strong><br>Lat: ${lat}, Lng: ${lng}`).openPopup();
+            
+            // Tambahkan circle untuk highlight
+            L.circle([lat, lng], {
+                color: '#3b82f6',
+                fillColor: '#3b82f6',
+                fillOpacity: 0.1,
+                radius: 100
+            }).addTo(blockMap);
+            
+            showNotification('Info', `Lokasi ${nama} ditampilkan di peta`, 'info');
+        } else {
+            initializeBlockMap();
+            setTimeout(() => showOnMap(lat, lng, nama), 1000);
+        }
+    }, 1000);
+}
+
+// Fungsi untuk menghapus WP (sudah ada, tidak perlu diubah)
+function deleteWp(id) {
+    Swal.fire({
+        title: 'Konfirmasi',
+        text: 'Apakah Anda yakin ingin menghapus data ini?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, Hapus',
+        cancelButtonText: 'Batal',
+        confirmButtonColor: '#ef4444'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const index = wajibPajak.findIndex(w => w.id === id);
+            if (index !== -1) {
+                const deletedName = wajibPajak[index].nama;
+                wajibPajak.splice(index, 1);
+                saveData();
+                renderWPTable();
+                showNotification('Berhasil', `Data ${deletedName} berhasil dihapus!`, 'success');
+            }
+        }
+    });
+}
+
+function getTaxName(code) {
+    const taxNames = {
+        reklame: 'Pajak Reklame',
+        airtanah: 'Pajak Air Tanah',
+        walet: 'Pajak Sarang Burung Walet',
+        mineral: 'Pajak Mineral Bukan Logam & Batuan',
+        pbbp2: 'Pajak Bumi dan Bangunan (PBB-P2)',
+        bphtb: 'Bea Perolehan Hak atas Tanah dan Bangunan (BPHTB)',
+        pbjt_makanan: 'PBJT Makanan & Minuman',
+        pbjt_listrik: 'PBJT Tenaga Listrik',
+        pbjt_perhotelan: 'PBJT Perhotelan',
+        pbjt_parkir: 'PBJT Parkir',
+        pbjt_hiburan: 'PBJT Kesenian & Hiburan',
+        opsen_pkb: 'Opsen Pajak Kendaraan Bermotor (PKB)',
+        opsen_bbnkb: 'Opsen Bea Balik Nama Kendaraan Bermotor (BBNKB)'
+    };
+    return taxNames[code] || code;
+}
+
+function resetForm() {
+    const form = document.getElementById('wpForm');
+    form.reset();
+    document.querySelectorAll('[id^="fields-"]').forEach(f => f.classList.add('hidden'));
+    clearMapLocation();
+    
+    // Reset judul dan tombol
+    const title = document.querySelector('#page-input-wp h2');
+    if (title) title.textContent = 'Input Wajib Pajak';
+    
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Simpan Data';
+        submitBtn.onclick = null; // Reset event handler
+    }
+    
+    // Hapus tombol batal edit jika ada
+    const cancelBtn = document.getElementById('cancelEditBtn');
+    if (cancelBtn) cancelBtn.remove();
+}
