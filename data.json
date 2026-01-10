@@ -1,0 +1,97 @@
+{
+  "wajibPajak": [],
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "password": "admin123",
+      "nama": "Administrator",
+      "role": "admin"
+    },
+    {
+      "id": 2,
+      "username": "petugas",
+      "password": "petugas123",
+      "nama": "Petugas Pajak",
+      "role": "petugas"
+    },
+    {
+      "id": 3,
+      "username": "viewer",
+      "password": "viewer123",
+      "nama": "Viewer",
+      "role": "viewer"
+    }
+  ],
+  "realisasiPajak": [
+    {
+      "id": 1,
+      "jenisPajak": "reklame",
+      "periode": "1",
+      "tahun": 2025,
+      "tanggalRealisasi": "2025-01-15",
+      "target": 500000000,
+      "realisasi": 350000000,
+      "catatan": "Target tercapai 70%",
+      "createdAt": "2025-01-15T08:00:00.000Z",
+      "createdBy": "Administrator"
+    },
+    {
+      "id": 2,
+      "jenisPajak": "pbbp2",
+      "periode": "1",
+      "tahun": 2025,
+      "tanggalRealisasi": "2025-01-15",
+      "target": 1500000000,
+      "realisasi": 1200000000,
+      "catatan": "PBB-P2 berjalan baik",
+      "createdAt": "2025-01-15T08:30:00.000Z",
+      "createdBy": "Administrator"
+    },
+    {
+      "id": 3,
+      "jenisPajak": "bphtb",
+      "periode": "1",
+      "tahun": 2025,
+      "tanggalRealisasi": "2025-01-15",
+      "target": 800000000,
+      "realisasi": 650000000,
+      "catatan": "Transaksi properti meningkat",
+      "createdAt": "2025-01-15T09:00:00.000Z",
+      "createdBy": "Administrator"
+    },
+    {
+      "id": 4,
+      "jenisPajak": "pbjt_makanan",
+      "periode": "1",
+      "tahun": 2025,
+      "tanggalRealisasi": "2025-01-15",
+      "target": 300000000,
+      "realisasi": 280000000,
+      "catatan": "Restoran dan cafe berkembang",
+      "createdAt": "2025-01-15T09:30:00.000Z",
+      "createdBy": "Administrator"
+    },
+    {
+      "id": 5,
+      "jenisPajak": "opsen_pkb",
+      "periode": "1",
+      "tahun": 2025,
+      "tanggalRealisasi": "2025-01-15",
+      "target": 1000000000,
+      "realisasi": 750000000,
+      "catatan": "Kendaraan bermotor meningkat",
+      "createdAt": "2025-01-15T10:00:00.000Z",
+      "createdBy": "Administrator"
+    }
+  ],
+  "settings": {
+    "namaPemda": "Kabupaten Sidenreng Rappang",
+    "logoUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Coat_of_arms_of_Sidrap_Regency.svg/1200px-Coat_of_arms_of_Sidrap_Regency.svg.png",
+    "targetPajak": {
+      "2024": 100000000000,
+      "2025": 120000000000,
+      "2026": 150000000000
+    }
+  } 
+}
