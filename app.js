@@ -1725,6 +1725,45 @@ const taxTypesRealisasi = [
     { code: 'opsen_bbnkb', name: 'Opsen BBNKB', color: '#dc2626' }
 ];
 
+const realizationSchema = {
+    // Identitas
+    id: Number,
+    jenisPajak: String,           // 'reklame', 'airtanah', dll.
+    periode: String,              // '1'-'12' (bulan)
+    tahun: Number,                // 2024, 2025, dll.
+    
+    // WP Data
+    wpId: Number,
+    namaWp: String,
+    namaUsaha: String,
+    npwpd: String,
+    alamat: String,
+    jenisUsaha: String,
+    
+    // Financial Data
+    target: Number,
+    nilaiPokok: Number,           // Nilai pokok tahun berjalan
+    nilaiTunggakan: Number,       // Nilai tunggakan tahun sebelumnya
+    denda: Number,                // Denda keterlambatan
+    total: Number,                // Nilai Pokok + Tunggakan + Denda
+    
+    // Payment Data
+    metodePembayaran: String,     // 'tunai', 'transfer', 'qris', 'merchant'
+    noReferensi: String,          // Bukti pembayaran
+    
+    // Date
+    tanggalRealisasi: String,     // YYYY-MM-DD
+    
+    // Notes
+    catatan: String,
+    
+    // Metadata
+    createdAt: String,
+    createdBy: String,
+    syncStatus: String,           // 'pending', 'synced', 'failed'
+    firebaseId: String            // Firebase document ID
+};
+
 function generateYears() {
     const select = document.getElementById('realisasiTahun');
     if (!select) return;
