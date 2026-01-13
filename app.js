@@ -1694,6 +1694,193 @@ function exportRealisasi() {
 }
 
 // =====================================================
+// FIREBASE ONLINE DATABASE
+// =====================================================
+
+// Firebase Configuration
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "sidrap-pajak-daerah.firebaseapp.com",
+    databaseURL: "https://sidrap-pajak-daerah.firebaseio.com",
+    projectId: "sidrap-pajak-daerah",
+    storageBucket: "sidrap-pajak-daerah.appspot.com",
+    messagingSenderId: "123456789",
+    appId: "YOUR_APP_ID"
+};
+
+// Initialize Firebase
+let app, db, auth;
+let firebaseInitialized = false;
+let isOnline = navigator.onLine;
+
+// Initialize Firebase on app start
+async function initializeFirebase() {
+    try {
+        // Load Firebase SDK dynamically
+        if (typeof firebase === 'undefined') {
+            await loadFirebaseSDK();
+        }
+        
+        // Initialize Firebase
+        if (!firebase.apps.length) {
+            app = firebase.initializeApp(firebaseConfig);
+        } else {
+            app = firebase.apps[0];
+        }
+        
+        db = firebase.firestore();
+        auth = firebase.auth();
+        firebaseInitialized = true;
+        
+        // Enable offline persistence
+        await db.enablePersistence();
+        
+        console.log('Firebase initialized successfully');
+        updateOnlineStatus();
+        
+        return true;
+    } catch (error) {
+        console.error('Firebase initialization failed:', error);
+        firebaseInitialized = false;
+        return false;
+    }
+}
+
+// Load Firebase SDK
+function loadFirebaseSDK() {
+    return new Promise((resolve, reject) => {
+        const scripts = [
+            'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js',
+            'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js',
+            'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js'
+        ];
+        
+        let loaded = 0;
+        scripts.forEach(src => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = () => {
+                loaded++;
+                if (loaded === scripts.length) resolve();
+            };
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    });
+}
+
+// Save Realisasi to Firebase
+async function saveRealisasiToFirebase(data) {
+    if (!firebaseInitialized || !isOnline) {
+        console.log('Firebase not available, saving to local only');
+        localStorage.setItem('pendingSync', JSON.stringify(data));
+        return false;
+    }
+    
+    try {
+        // Add to Firestore
+        const docRef = await db.collection('realisasiPajak').add({
+            ...data,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        console.log('Realisasi saved to Firebase with ID:', docRef.id);
+        return docRef.id;
+    } catch (error) {
+        console.error('Error saving to Firebase:', error);
+        // Save to local as pending
+        const pending = JSON.parse(localStorage.getItem('pendingSync') || '[]');
+        pending.push({ type: 'realisasi', data: data, timestamp: Date.now() });
+        localStorage.setItem('pendingSync', JSON.stringify(pending));
+        return false;
+    }
+}
+
+// Sync all data to Firebase
+async function syncAllDataToFirebase() {
+    if (!firebaseInitialized || !isOnline) {
+        showNotification('Offline', 'Tidak dapat sync. Periksa koneksi internet.', 'warning');
+        return;
+    }
+    
+    Swal.fire({
+        title: 'Syncing Data',
+        text: 'Sedang mengupload data ke Firebase...',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+    
+    try {
+        const batch = db.batch();
+        const timestamp = new Date().toISOString();
+        
+        // Sync Wajib Pajak
+        for (const wp of wajibPajak) {
+            const docRef = db.collection('wajibPajak').doc(wp.id.toString());
+            batch.set(docRef, { ...wp, syncTimestamp: timestamp });
+        }
+        
+        // Sync Realisasi
+        for (const r of realisasiPajak) {
+            const docRef = db.collection('realisasiPajak').doc(r.id.toString());
+            batch.set(docRef, { ...r, syncTimestamp: timestamp });
+        }
+        
+        // Sync Users
+        for (const u of users) {
+            const { password, ...userData } = u;
+            const docRef = db.collection('users').doc(u.id.toString());
+            batch.set(docRef, { ...userData, syncTimestamp: timestamp });
+        }
+        
+        // Commit batch
+        await batch.commit();
+        
+        // Update last sync time
+        localStorage.setItem('lastSyncTime', timestamp);
+        
+        Swal.fire('Berhasil', `Data berhasil disync ke Firebase!`, 'success');
+        updateOnlineStatus();
+        
+    } catch (error) {
+        console.error('Sync error:', error);
+        Swal.fire('Gagal', 'Sync gagal: ' + error.message, 'error');
+    }
+}
+
+// Listen for online/offline status
+window.addEventListener('online', () => {
+    isOnline = true;
+    updateOnlineStatus();
+    syncPendingData();
+});
+
+window.addEventListener('offline', () => {
+    isOnline = false;
+    updateOnlineStatus();
+});
+
+// Update online status UI
+function updateOnlineStatus() {
+    const statusEl = document.getElementById('onlineStatus');
+    const syncTimeEl = document.getElementById('lastSyncTime');
+    
+    if (statusEl) {
+        statusEl.innerHTML = isOnline && firebaseInitialized 
+            ? '<span class="text-green-600"><i class="fas fa-cloud mr-1"></i>Online - Firebase Aktif</span>'
+            : '<span class="text-gray-500"><i class="fas fa-cloud-slash mr-1"></i>Offline - Local Only</span>';
+    }
+    
+    if (syncTimeEl) {
+        const lastSync = localStorage.getItem('lastSyncTime');
+        syncTimeEl.textContent = lastSync 
+            ? `Terakhir sync: ${new Date(lastSync).toLocaleString('id-ID')}`
+            : 'Belum pernah sync';
+    }
+}
+
+// =====================================================
 // DATA STORAGE
 // =====================================================
 
