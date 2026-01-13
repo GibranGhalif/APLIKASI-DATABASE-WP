@@ -443,6 +443,375 @@ function getTaxColor(taxTypes) {
 }
 
 // =====================================================
+// BLOCK MAP - WARNA BERBEDA SETIAP JENIS PAJAK
+// =====================================================
+
+// Color mapping for each tax type
+const taxColors = {
+    reklame: { color: '#3b82f6', icon: '🪧', name: 'Pajak Reklame' },
+    airtanah: { color: '#06b6d4', icon: '💧', name: 'Pajak Air Tanah' },
+    walet: { color: '#8b5cf6', icon: '🐦', name: 'Pajak Walet' },
+    mineral: { color: '#f59e0b', icon: '🪨', name: 'Mineral' },
+    pbbp2: { color: '#eab308', icon: '🏠', name: 'PBB-P2' },
+    bphtb: { color: '#22c55e', icon: '📋', name: 'BPHTB' },
+    pbjt_makanan: { color: '#ec4899', icon: '🍽️', name: 'PBJT M&M' },
+    pbjt_listrik: { color: '#f97316', icon: '⚡', name: 'PBJT Listrik' },
+    pbjt_perhotelan: { color: '#14b8a6', icon: '🏨', name: 'PBJT Hotel' },
+    pbjt_parkir: { color: '#6366f1', icon: '🅿️', name: 'PBJT Parkir' },
+    pbjt_hiburan: { color: '#a855f7', icon: '🎭', name: 'PBJT Hiburan' },
+    opsen_pkb: { color: '#ef4444', icon: '🚗', name: 'Opsen PKB' },
+    opsen_bbnkb: { color: '#dc2626', icon: '🔄', name: 'Opsen BBNKB' }
+};
+
+// Initialize Block Map
+function initializeBlockMap() {
+    console.log('Initializing Block Map...');
+    
+    const mapContainer = document.getElementById('blockMap');
+    
+    if (!mapContainer) {
+        console.error('Block map container not found');
+        return;
+    }
+    
+    if (blockMap) {
+        setTimeout(() => { if (blockMap) blockMap.invalidateSize(); }, 100);
+        return;
+    }
+    
+    try {
+        blockMap = L.map('blockMap', {
+            zoomControl: false,
+            attributionControl: true
+        }).setView([-3.9848, 120.2008], 13);
+        
+        // Add tile layers
+        streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        });
+        
+        satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '© Esri',
+            maxZoom: 19
+        });
+        
+        streetLayer.addTo(blockMap);
+        
+        // Add all WP markers with different colors
+        addAllWPMarkers();
+        
+        // Update stats
+        updateBlockStats();
+        
+        console.log('Block map initialized');
+        
+    } catch (error) {
+        console.error('Error initializing block map:', error);
+    }
+}
+
+// Add WP markers with different colors
+function addAllWPMarkers() {
+    if (!blockMap) return;
+    
+    console.log('Adding WP markers...');
+    
+    // Clear existing markers
+    if (blockMap.markers) {
+        blockMap.markers.forEach(m => blockMap.removeLayer(m));
+    }
+    blockMap.markers = [];
+    
+    // Clear existing layer groups
+    if (blockMap.taxLayers) {
+        Object.values(blockMap.taxLayers).forEach(layer => {
+            if (blockMap.hasLayer(layer)) {
+                blockMap.removeLayer(layer);
+            }
+        });
+    }
+    blockMap.taxLayers = {};
+    
+    // Create layer groups for each tax type
+    Object.keys(taxColors).forEach(taxType => {
+        blockMap.taxLayers[taxType] = L.layerGroup().addTo(blockMap);
+    });
+    
+    // Add markers for each WP
+    wajibPajak.forEach((wp, index) => {
+        if (wp.latitude && wp.longitude) {
+            const colors = (wp.jenisPajak || []).map(tax => taxColors[tax]).filter(Boolean);
+            
+            if (colors.length > 0) {
+                // Use first tax type color for marker
+                const primaryColor = colors[0].color;
+                const iconInfo = colors[0];
+                
+                // Create custom marker with tax-specific color
+                const marker = createTaxMarker(wp, index + 1, primaryColor, iconInfo);
+                
+                // Add to layer for each tax type
+                (wp.jenisPajak || []).forEach(taxType => {
+                    if (blockMap.taxLayers[taxType] && marker) {
+                        blockMap.taxLayers[taxType].addLayer(marker);
+                    }
+                });
+                
+                blockMap.markers.push(marker);
+            }
+        }
+    });
+    
+    // Update statistics
+    updateBlockStats();
+    
+    console.log('Total markers added:', blockMap.markers.length);
+}
+
+// Create custom tax marker
+function createTaxMarker(wp, number, color, iconInfo) {
+    const icon = L.divIcon({
+        className: 'tax-marker',
+        html: `
+            <div style="
+                position: relative;
+                width: 32px;
+                height: 32px;
+                cursor: pointer;
+                transition: transform 0.2s;
+            ">
+                <div style="
+                    width: 32px;
+                    height: 32px;
+                    background: linear-gradient(135deg, ${color} 0%, ${adjustColor(color, -20)} 100%);
+                    border: 3px solid white;
+                    border-radius: 50%;
+                    box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: transform 0.2s;
+                " onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">
+                    <span style="
+                        color: white;
+                        font-size: 12px;
+                        font-weight: bold;
+                        text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+                    ">${number}</span>
+                </div>
+                <div style="
+                    position: absolute;
+                    top: 34px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 0;
+                    height: 0;
+                    border-left: 8px solid transparent;
+                    border-right: 8px solid transparent;
+                    border-bottom: 8px solid ${color};
+                "></div>
+            </div>
+        `,
+        iconSize: [32, 48],
+        iconAnchor: [16, 48],
+        popupAnchor: [0, -48]
+    });
+    
+    const marker = L.marker([wp.latitude, wp.longitude], { icon: icon })
+        .bindPopup(getWPPopupContent(wp));
+    
+    return marker;
+}
+
+// Get WP popup content
+function getWPPopupContent(wp) {
+    const taxBadges = (wp.jenisPajak || []).map(tax => {
+        const info = taxColors[tax];
+        if (!info) return '';
+        return `
+            <span style="
+                background: ${info.color};
+                color: white;
+                padding: 2px 10px;
+                border-radius: 12px;
+                font-size: 11px;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                margin-right: 4px;
+                margin-bottom: 4px;
+            ">
+                ${info.icon} ${info.name}
+            </span>
+        `;
+    }).join('');
+    
+    return `
+        <div style="
+            min-width: 280px;
+            font-family: 'Poppins', sans-serif;
+        ">
+            <div style="
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 12px;
+                padding-bottom: 12px;
+                border-bottom: 2px solid #e5e7eb;
+            ">
+                <div style="
+                    width: 48px;
+                    height: 48px;
+                    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ">
+                    <i class="fas fa-user" style="color: white; font-size: 20px;"></i>
+                </div>
+                <div>
+                    <h4 style="margin: 0; color: #1f2937; font-size: 16px; font-weight: 600;">
+                        ${wp.nama}
+                    </h4>
+                    <p style="margin: 2px 0 0 0; color: #6b7280; font-size: 13px;">
+                        ${wp.namaUsaha || '-'}
+                    </p>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+                <p style="margin: 0 0 4px 0; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">
+                    Jenis Pajak
+                </p>
+                <div style="margin-top: 4px;">
+                    ${taxBadges || '<span style="color: #9ca3af;">-</span>'}
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                <div>
+                    <p style="margin: 0; font-size: 11px; color: #6b7280;">NPWPD</p>
+                    <p style="margin: 2px 0 0 0; font-size: 13px; color: #374151;">${wp.npwp || '-'}</p>
+                </div>
+                <div>
+                    <p style="margin: 0; font-size: 11px; color: #6b7280;">Telepon</p>
+                    <p style="margin: 2px 0 0 0; font-size: 13px; color: #374151;">${wp.telepon || '-'}</p>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+                <p style="margin: 0; font-size: 11px; color: #6b7280;">Alamat</p>
+                <p style="margin: 2px 0 0 0; font-size: 13px; color: #374151;">
+                    ${wp.alamat || '-'}
+                </p>
+                <p style="margin: 2px 0 0 0; font-size: 12px; color: #6b7280;">
+                    ${wp.kecamatan || ''} ${wp.kelurahan ? ', ' + wp.kelurahan : ''}
+                </p>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+                <p style="margin: 0; font-size: 11px; color: #6b7280;">Koordinat</p>
+                <p style="margin: 2px 0 0 0; font-size: 12px; color: #6b7280; font-family: monospace;">
+                    ${wp.latitude}, ${wp.longitude}
+                </p>
+            </div>
+            
+            <div style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding-top: 12px;
+                border-top: 1px solid #e5e7eb;
+            ">
+                <span style="
+                    background: ${wp.statusKeaktifan === 'Aktif' ? '#dcfce7' : '#fee2e2'};
+                    color: ${wp.statusKeaktifan === 'Aktif' ? '#166534' : '#991b1b'};
+                    padding: 4px 12px;
+                    border-radius: 16px;
+                    font-size: 12px;
+                    font-weight: 500;
+                ">
+                    ${wp.statusKeaktifan || 'Aktif'}
+                </span>
+                <button onclick="viewWPDetail(${wp.id})" style="
+                    background: #3b82f6;
+                    color: white;
+                    border: none;
+                    padding: 6px 14px;
+                    border-radius: 6px;
+                    font-size: 12px;
+                    cursor: pointer;
+                    transition: background 0.2s;
+                ">
+                    <i class="fas fa-eye mr-1"></i>Lihat Detail
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// Adjust color brightness
+function adjustColor(color, amount) {
+    const hex = color.replace('#', '');
+    const r = Math.max(0, Math.min(255, parseInt(hex.substring(0, 2), 16) + amount));
+    const g = Math.max(0, Math.min(255, parseInt(hex.substring(2, 4), 16) + amount));
+    const b = Math.max(0, Math.min(255, parseInt(hex.substring(4, 6), 16) + amount));
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+// Update block statistics
+function updateBlockStats() {
+    const totalWP = wajibPajak.length;
+    const totalWithCoords = wajibPajak.filter(wp => wp.latitude && wp.longitude).length;
+    
+    // Count by tax type
+    const taxCounts = {};
+    Object.keys(taxColors).forEach(tax => {
+        taxCounts[tax] = wajibPajak.filter(wp => 
+            wp.jenisPajak && wp.jenisPajak.includes(tax)
+        ).length;
+    });
+    
+    // Update UI
+    document.getElementById('totalTitik').textContent = totalWithCoords;
+    
+    // Update tax counts in legend
+    Object.keys(taxCounts).forEach(tax => {
+        const countEl = document.getElementById(`count-${tax}`);
+        if (countEl) {
+            countEl.textContent = taxCounts[tax];
+        }
+    });
+}
+
+// Toggle tax type visibility
+function toggleTaxLayer(taxType, show) {
+    if (!blockMap || !blockMap.taxLayers) return;
+    
+    if (show) {
+        blockMap.taxLayers[taxType].addTo(blockMap);
+    } else {
+        blockMap.removeLayer(blockMap.taxLayers[taxType]);
+    }
+}
+
+// Show all tax layers
+function showAllTaxLayers() {
+    Object.keys(taxColors).forEach(taxType => {
+        toggleTaxLayer(taxType, true);
+    });
+}
+
+// Hide all tax layers
+function hideAllTaxLayers() {
+    Object.keys(taxColors).forEach(taxType => {
+        toggleTaxLayer(taxType, false);
+    });
+}
+
+// =====================================================
 // IMPORT SHAPEFILE / KMZ / KML
 // =====================================================
 
