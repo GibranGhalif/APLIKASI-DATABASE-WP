@@ -1849,6 +1849,79 @@
         </div>
     </div>
 
+    <!-- Metode Pembayaran Section -->
+<div class="mb-6">
+    <label class="block text-sm font-medium text-gray-700 mb-3">
+        <i class="fas fa-credit-card mr-2 text-blue-600"></i>
+        Metode Pembayaran *
+    </label>
+    
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <!-- Tunai -->
+        <label class="relative cursor-pointer group">
+            <input type="radio" name="metodePembayaran" value="tunai" class="peer sr-only" checked>
+            <div class="p-4 border-2 border-gray-200 rounded-xl text-center transition-all peer-checked:border-green-500 peer-checked:bg-green-50 hover:border-gray-300">
+                <div class="w-12 h-12 mx-auto mb-2 bg-green-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-money-bill-wave text-green-600 text-xl"></i>
+                </div>
+                <p class="font-medium text-gray-700">Tunai</p>
+                <p class="text-xs text-gray-500">Uang Tunai</p>
+            </div>
+        </label>
+        
+        <!-- Transfer Bank -->
+        <label class="relative cursor-pointer group">
+            <input type="radio" name="metodePembayaran" value="transfer" class="peer sr-only">
+            <div class="p-4 border-2 border-gray-200 rounded-xl text-center transition-all peer-checked:border-blue-500 peer-checked:bg-blue-50 hover:border-gray-300">
+                <div class="w-12 h-12 mx-auto mb-2 bg-blue-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-university text-blue-600 text-xl"></i>
+                </div>
+                <p class="font-medium text-gray-700">Transfer</p>
+                <p class="text-xs text-gray-500">Transfer Bank</p>
+            </div>
+        </label>
+        
+        <!-- QRIS -->
+        <label class="relative cursor-pointer group">
+            <input type="radio" name="metodePembayaran" value="qris" class="peer sr-only">
+            <div class="p-4 border-2 border-gray-200 rounded-xl text-center transition-all peer-checked:border-purple-500 peer-checked:bg-purple-50 hover:border-gray-300">
+                <div class="w-12 h-12 mx-auto mb-2 bg-purple-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-qrcode text-purple-600 text-xl"></i>
+                </div>
+                <p class="font-medium text-gray-700">QRIS</p>
+                <p class="text-xs text-gray-500">Scan QR Code</p>
+            </div>
+        </label>
+        
+        <!-- Merchant -->
+        <label class="relative cursor-pointer group">
+            <input type="radio" name="metodePembayaran" value="merchant" class="peer sr-only">
+            <div class="p-4 border-2 border-gray-200 rounded-xl text-center transition-all peer-checked:border-orange-500 peer-checked:bg-orange-50 hover:border-gray-300">
+                <div class="w-12 h-12 mx-auto mb-2 bg-orange-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-credit-card text-orange-600 text-xl"></i>
+                </div>
+                <p class="font-medium text-gray-700">Merchant</p>
+                <p class="text-xs text-gray-500">Kartu/EDC</p>
+            </div>
+        </label>
+    </div>
+</div>
+
+<!-- No. Referensi -->
+<div class="mb-6">
+    <label class="block text-sm font-medium text-gray-700 mb-2">
+        <i class="fas fa-receipt mr-2 text-gray-500"></i>
+        No. Referensi / Bukti Pembayaran
+    </label>
+    <input type="text" 
+           name="noReferensi" 
+           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+           placeholder="Contoh: BKT-2025-0001 atau QR123456789">
+    <p class="text-xs text-gray-500 mt-1">
+        Masukkan nomor bukti pembayaran (kwitansi, slip transfer, kode QRIS, dll.)
+    </p>
+</div>
+
     <!-- Firebase Config Modal -->
     <div id="firebaseConfigModal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg">
